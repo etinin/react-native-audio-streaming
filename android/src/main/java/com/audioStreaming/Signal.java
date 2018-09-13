@@ -168,6 +168,7 @@ public class Signal extends Service implements OnErrorListener,
     }
 
     public void showNotification() {
+        
         remoteViews = new RemoteViews(context.getPackageName(), R.layout.streaming_notification_player);
         notifyBuilder = new Notification.Builder(this.context)
                 .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off) // TODO Use app icon instead
@@ -190,7 +191,7 @@ public class Signal extends Service implements OnErrorListener,
         remoteViews.setOnClickPendingIntent(R.id.btn_streaming_notification_play, makePendingIntent(BROADCAST_PLAYBACK_PLAY));
         remoteViews.setOnClickPendingIntent(R.id.btn_streaming_notification_stop, makePendingIntent(BROADCAST_EXIT));
         notifyManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-    
+        notifyManager.cancelAll();
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel =
                     new NotificationChannel("com.audioStreaming", "Audio Streaming",
