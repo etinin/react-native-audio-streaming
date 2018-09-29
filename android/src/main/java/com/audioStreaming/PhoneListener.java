@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 
+@Deprecated
 public class PhoneListener extends PhoneStateListener {
 
     private ReactNativeAudioStreamingModule module;

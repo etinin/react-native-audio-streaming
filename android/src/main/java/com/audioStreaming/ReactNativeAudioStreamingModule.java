@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
@@ -67,7 +68,8 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
 
     try {
       bindIntent = new Intent(this.context, Signal.class);
-      this.context.bindService(bindIntent, this, Context.BIND_AUTO_CREATE);
+      ContextCompat.startForegroundService(this.context, this.bindIntent);
+      this.context.bindService(bindIntent, this, Context.BIND_IMPORTANT);
     } catch (Exception e) {
       Log.e("ERROR", e.getMessage());
     }
@@ -86,21 +88,25 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
 
   @ReactMethod public void play(String streamingURL, ReadableMap options) {
     this.streamingURL = streamingURL;
-    this.shouldShowNotification =
-        options.hasKey(SHOULD_SHOW_NOTIFICATION) && options.getBoolean(SHOULD_SHOW_NOTIFICATION);
+//    this.shouldShowNotification =
+//        options.hasKey(SHOULD_SHOW_NOTIFICATION) && options.getBoolean(SHOULD_SHOW_NOTIFICATION);
     signal.setURLStreaming(streamingURL); // URL of MP3 or AAC stream
     playInternal();
   }
 
   private void playInternal() {
-    signal.play();
-    if (shouldShowNotification) {
-      signal.showNotification();
+    if(signal==null) {
+      bindIntent = new Intent(this.context, Signal.class);
+      ContextCompat.startForegroundService(this.context, this.bindIntent);
+      this.context.bindService(bindIntent, this, Context.BIND_IMPORTANT);
     }
+    signal.play();
+
   }
 
   @ReactMethod public void stop() {
     signal.stop();
+    signal = null;
   }
 
   @ReactMethod public void pause() {
@@ -114,7 +120,7 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
   }
 
   @ReactMethod public void destroyNotification() {
-    signal.exitNotification();
+    signal.stopForeground(true);
   }
 
   @ReactMethod public void getStatus(Callback callback) {
