@@ -2,13 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="com.audioStreaming">
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <application
         android:allowBackup="true">
         <service
             android:name="com.audioStreaming.Signal"
             android:enabled="true"
             android:theme="@android:style/Theme.NoTitleBar"
-            android:stopWithTask="true"/>
+            android:stopWithTask="false"/>
     </application>
 </manifest>
   

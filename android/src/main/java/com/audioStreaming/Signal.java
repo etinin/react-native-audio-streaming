@@ -32,6 +32,7 @@ import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 import android.widget.RemoteViews;
 import android.widget.Toast;
 
@@ -62,7 +63,6 @@ public class Signal extends Service
     private NotificationManager notifyManager = null;
             private PlaybackStateCompat mPlaybackState;
     public static RemoteViews remoteViews;
-    private MediaPlayer mMediaPlayer;
 
 
     public static final String BROADCAST_PLAYBACK_STOP = "stop",
@@ -92,40 +92,9 @@ public class Signal extends Service
 
             //AudioManager.
             private AudioManagerHelper mAudioManagerHelper;
-            /**
-             * Returns the current active MediaPlayer object.
-             */
-            public MediaPlayer getCurrentMediaPlayer() {
-                    return mMediaPlayer;
 
-            }
 
-            /**
-             * Returns the primary MediaPlayer object. Don't
-             * use this method directly unless you have a good
-             * reason to explicitly call mMediaPlayer. Use
-             * getCurrentMediaPlayer() whenever possible.
-             */
-            public MediaPlayer getMediaPlayer() {
-                return mMediaPlayer;
-            }
 
-            /**
-             * Indicates if music is currently playing.
-             */
-            public boolean isPlayingMusic() {
-                try {
-                    if (getCurrentMediaPlayer().isPlaying())
-                        return true;
-                    else
-                        return false;
-
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    return false;
-                }
-
-            }
 
 
     public void setData(Context context, ReactNativeAudioStreamingModule module) {
@@ -196,7 +165,7 @@ public class Signal extends Service
             // setup our media session
             mMediaSession = new MediaSessionCompat(this, Signal.class.getSimpleName());
             Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
-            PendingIntent mbrIntent = PendingIntent.getBroadcast(this.context, 0, mediaButtonIntent, 0);
+            PendingIntent mbrIntent = PendingIntent.getBroadcast(this, 0, mediaButtonIntent, 0);
             mMediaSession.setMediaButtonReceiver(mbrIntent);
             mMediaSession.setCallback( new MediaSessionCompat.Callback() {
                 @Override
@@ -269,10 +238,11 @@ public class Signal extends Service
     boolean mVirgin = true;
 
     public void play() {
-        if(mVirgin) {
+        Log.v("MELODIA STOP", "melodia playing");
+//        if(mVirgin) {
             startForeground(NOTIFY_ME_ID, getNotification());
             mVirgin = false;
-        }
+//        }
         if (isConnected() && !this.isPlaying) {
             this.prepare();
         } else {
@@ -285,7 +255,7 @@ public class Signal extends Service
 
     public void stop() {
         this.isPreparingStarted = false;
-
+        Log.v("MELODIA STOP", "melodia stopping");
         if (this.isPlaying) {
             this.isPlaying = false;
             this.player.setPlayWhenReady(false);
@@ -311,6 +281,7 @@ public class Signal extends Service
 
                 }
             }
+            stopForeground(false);
         }
 
 
@@ -345,17 +316,17 @@ public class Signal extends Service
 
         }
         remoteViews = new RemoteViews(context.getPackageName(), R.layout.streaming_notification_player);
-        notifyBuilder = new NotificationCompat.Builder(this.context, "com.audioStreaming")
+        notifyBuilder = new NotificationCompat.Builder(this, "com.audioStreaming")
                 .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off) // TODO Use app icon instead
                 .setContentText("")
                 .setOngoing(true)
                 .setContent(remoteViews).setOnlyAlertOnce(true);
 
-        Intent resultIntent = new Intent(this.context, this.clsActivity);
+        Intent resultIntent = new Intent(this, this.clsActivity);
         resultIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         resultIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this.context);
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
         stackBuilder.addParentStack(this.clsActivity);
         stackBuilder.addNextIntent(resultIntent);
 
@@ -382,13 +353,14 @@ public class Signal extends Service
     }
 
     public void clearNotification() {
-        if (notifyManager != null)
-            notifyManager.cancel(NOTIFY_ME_ID);
+//        if (notifyManager != null)
+//            notifyManager.cancel(NOTIFY_ME_ID);
     }
 
     public void exitNotification() {
+        stopForeground(true);
         notifyManager.cancelAll();
-        clearNotification();
+//        clearNotification();
         notifyBuilder = null;
         notifyManager = null;
     }
@@ -516,7 +488,7 @@ public class Signal extends Service
                 AudioAttributes.Builder contentType = new AudioAttributes.Builder().setContentType(2);
                 contentType.setUsage(android.media.AudioAttributes.USAGE_MEDIA);
                 DefaultLoadControl.Builder builder = new DefaultLoadControl.Builder();
-                builder.setAllocator(new DefaultAllocator(true, 32*1024));
+                builder.setAllocator(new DefaultAllocator(true, 64*1024));
                 builder.setBufferDurationsMs(5000, 25000, 5000, 5000);
                 builder.setPrioritizeTimeOverSizeThresholds(true);
                 this.player = ExoPlayerFactory.newSimpleInstance( this, new DefaultRenderersFactory(this),trackSelector, builder.createDefaultLoadControl());
@@ -665,6 +637,12 @@ public class Signal extends Service
         //  TODO
     }
 
+            @Override
+            public void onDestroy() {
+                super.onDestroy();
+                if (this.receiver != null)
+                    unregisterReceiver(this.receiver);
+            }
 
     public void playerStopped(int perf) {
         this.isPlaying = false;
