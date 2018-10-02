@@ -158,57 +158,57 @@ public class Signal extends Service
             mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "radioMelodiaWakelock");
 
             // set default playback state
-            mPlaybackState = new PlaybackStateCompat.Builder()
-                    .setState(PlaybackStateCompat.STATE_NONE, 0, 1.0f)
-                    .build();
+//            mPlaybackState = new PlaybackStateCompat.Builder()
+//                    .setState(PlaybackStateCompat.STATE_NONE, 0, 1.0f)
+//                    .build();
 
             // setup our media session
-            mMediaSession = new MediaSessionCompat(this, Signal.class.getSimpleName());
-            Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
-            PendingIntent mbrIntent = PendingIntent.getBroadcast(this, 0, mediaButtonIntent, 0);
-            mMediaSession.setMediaButtonReceiver(mbrIntent);
-            mMediaSession.setCallback( new MediaSessionCompat.Callback() {
-                @Override
-                public void onPlay() {
-                    play();
-                }
+//            mMediaSession = new MediaSessionCompat(this, Signal.class.getSimpleName());
+//            Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+//            mMediaSession.setMediaButtonReceiver(null);
+//            PendingIntent mbrIntent = PendingIntent.getBroadcast(this, 0, mediaButtonIntent, 0);
+//            mMediaSession.setMediaButtonReceiver(mbrIntent);
+//            mMediaSession.setCallback( new MediaSessionCompat.Callback() {
+//                @Override
+//                public void onPlay() {
+//                    play();
+//                }
+//
+//                @Override
+//                public void onPause() {
+//                    stop();
+//                }
+//
+//                @Override
+//                public void onSkipToNext() {
+//
+//                }
+//
+//                @Override
+//                public void onSkipToPrevious() {
+//
+//                }
+//
+//                @Override
+//                public void onStop() {
+//                    stop();
+//                }
+//
+//                @Override
+//                public void onSeekTo(long pos) {
+//
+//                }
+//
+//                @Override
+//                public boolean onMediaButtonEvent(Intent mediaButtonEvent) {
+//                    sendBroadcast(mediaButtonEvent);
+//                    return true;
+//                }
+//            });
 
-                @Override
-                public void onPause() {
-                    stop();
-                }
-
-                @Override
-                public void onSkipToNext() {
-
-                }
-
-                @Override
-                public void onSkipToPrevious() {
-
-                }
-
-                @Override
-                public void onStop() {
-                    stop();
-                }
-
-                @Override
-                public void onSeekTo(long pos) {
-
-                }
-
-                @Override
-                public boolean onMediaButtonEvent(Intent mediaButtonEvent) {
-                    sendBroadcast(mediaButtonEvent);
-                    return true;
-                }
-            });
-
-            mMediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
-                    MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
-            mMediaSession.setActive(true);
-            mMediaSession.setPlaybackState(mPlaybackState);
+//            mMediaSession.setFlags(    MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
+//            mMediaSession.setActive(true);
+//            mMediaSession.setPlaybackState(mPlaybackState);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -259,9 +259,10 @@ public class Signal extends Service
         if (this.isPlaying) {
             this.isPlaying = false;
             this.player.setPlayWhenReady(false);
-            this.mPlaybackState = new PlaybackStateCompat.Builder().setState(PlaybackStateCompat.STATE_PAUSED, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f).setActions(PlaybackStateCompat.ACTION_PLAY).build();
 
-            this.mMediaSession.setPlaybackState(this.mPlaybackState);
+//            this.mPlaybackState = new PlaybackStateCompat.Builder().setState(PlaybackStateCompat.STATE_PAUSED, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f).setActions(PlaybackStateCompat.ACTION_PLAY).build();
+
+//            this.mMediaSession.setPlaybackState(this.mPlaybackState);
             if(mWifiLock!=null && mWifiLock.isHeld()) {
 
                 try{
@@ -489,8 +490,11 @@ public class Signal extends Service
                 contentType.setUsage(android.media.AudioAttributes.USAGE_MEDIA);
                 DefaultLoadControl.Builder builder = new DefaultLoadControl.Builder();
                 builder.setAllocator(new DefaultAllocator(true, 64*1024));
-                builder.setBufferDurationsMs(5000, 25000, 5000, 5000);
+                builder.setBufferDurationsMs(5000, 10000, 5000, 5000);
                 builder.setPrioritizeTimeOverSizeThresholds(true);
+
+
+
                 this.player = ExoPlayerFactory.newSimpleInstance( this, new DefaultRenderersFactory(this),trackSelector, builder.createDefaultLoadControl());
                 this.player.setAudioAttributes(contentType.build());
 
@@ -501,9 +505,10 @@ public class Signal extends Service
             }
             if(requestAudioFocus()) {
                 this.player.setPlayWhenReady(true);
-                this.mPlaybackState = new PlaybackStateCompat.Builder().setState(PlaybackStateCompat.STATE_PLAYING, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f).setActions(PlaybackStateCompat.ACTION_PAUSE).build();
-
-                this.mMediaSession.setPlaybackState(this.mPlaybackState);
+                //this.mPlaybackState = new PlaybackStateCompat.Builder().setState(PlaybackStateCompat.STATE_PLAYING, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f).setActions(PlaybackStateCompat.ACTION_PAUSE).build();
+                //this.mMediaSession.ge
+                //this.mMediaSession.
+                //this.mMediaSession.setPlaybackState(this.mPlaybackState);
                 this.isPlaying = true;
             }
 
@@ -525,11 +530,11 @@ public class Signal extends Service
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (this.isPlaying) {
-            sendBroadcast(new Intent(Mode.PLAYING));
+            //sendBroadcast(new Intent(Mode.PLAYING));
         } else if (this.isPreparingStarted) {
-            sendBroadcast(new Intent(Mode.START_PREPARING));
+            //sendBroadcast(new Intent(Mode.START_PREPARING));
         } else {
-            sendBroadcast(new Intent(Mode.STARTED));
+            //sendBroadcast(new Intent(Mode.STARTED));
         }
 
         return Service.START_STICKY;
@@ -540,7 +545,7 @@ public class Signal extends Service
         this.isPreparingStarted = false;
         this.didPrepare = true;
         //this.mediaPlayer.start();
-        sendBroadcast(new Intent(Mode.PREPARED));
+//        sendBroadcast(new Intent(Mode.PREPARED));
     }
 
    // @Override
