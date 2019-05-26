@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.media.MediaMetadata;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
 import android.media.RemoteControlClient;
@@ -26,13 +27,14 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.ServiceCompat;
 import android.support.v4.app.TaskStackBuilder;
+import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaButtonReceiver;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
-import android.util.Log;
 import android.widget.RemoteViews;
 import android.widget.Toast;
 
@@ -63,6 +65,7 @@ public class Signal extends Service
     private NotificationManager notifyManager = null;
             private PlaybackStateCompat mPlaybackState;
     public static RemoteViews remoteViews;
+    private MediaPlayer mMediaPlayer;
 
 
     public static final String BROADCAST_PLAYBACK_STOP = "stop",
@@ -91,10 +94,41 @@ public class Signal extends Service
     private SimpleExoPlayer player;
 
             //AudioManager.
-            private AudioManagerHelper mAudioManagerHelper;
+            private AudioManagerHelper mAudioManagerHelper = new AudioManagerHelper();
+            /**
+             * Returns the current active MediaPlayer object.
+             */
+            public MediaPlayer getCurrentMediaPlayer() {
+                    return mMediaPlayer;
 
+            }
 
+            /**
+             * Returns the primary MediaPlayer object. Don't
+             * use this method directly unless you have a good
+             * reason to explicitly call mMediaPlayer. Use
+             * getCurrentMediaPlayer() whenever possible.
+             */
+            public MediaPlayer getMediaPlayer() {
+                return mMediaPlayer;
+            }
 
+            /**
+             * Indicates if music is currently playing.
+             */
+            public boolean isPlayingMusic() {
+                try {
+                    if (getCurrentMediaPlayer().isPlaying())
+                        return true;
+                    else
+                        return false;
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return false;
+                }
+
+            }
 
 
     public void setData(Context context, ReactNativeAudioStreamingModule module) {
@@ -135,14 +169,18 @@ public class Signal extends Service
             private static final int DEFAULT_MIN_BUFFER_MS = 5000;
 
 
+
+
     @Override
     public void onCreate() {
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(BROADCAST_PLAYBACK_STOP);
         intentFilter.addAction(BROADCAST_PLAYBACK_PLAY);
         intentFilter.addAction(BROADCAST_EXIT);
-        intentFilter.addAction(BROADCAST_EXIT);
+        //intentFilter.addAction(BROADCAST_EXIT);
+        ///intentFilter.addAction("android.intent.action.MEDIA_BUTTON");
         registerReceiver(this.receiver, intentFilter);
+        //registerReceiver(this.receiver, new IntentFilter(Intent.ACTION_MEDIA_BUTTON));
         // setup our media session
 
 
@@ -158,58 +196,9 @@ public class Signal extends Service
             mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "radioMelodiaWakelock");
 
             // set default playback state
-//            mPlaybackState = new PlaybackStateCompat.Builder()
-//                    .setState(PlaybackStateCompat.STATE_NONE, 0, 1.0f)
-//                    .build();
 
-            // setup our media session
-//            mMediaSession = new MediaSessionCompat(this, Signal.class.getSimpleName());
-//            Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
-//            mMediaSession.setMediaButtonReceiver(null);
-//            PendingIntent mbrIntent = PendingIntent.getBroadcast(this, 0, mediaButtonIntent, 0);
-//            mMediaSession.setMediaButtonReceiver(mbrIntent);
-//            mMediaSession.setCallback( new MediaSessionCompat.Callback() {
-//                @Override
-//                public void onPlay() {
-//                    play();
-//                }
-//
-//                @Override
-//                public void onPause() {
-//                    stop();
-//                }
-//
-//                @Override
-//                public void onSkipToNext() {
-//
-//                }
-//
-//                @Override
-//                public void onSkipToPrevious() {
-//
-//                }
-//
-//                @Override
-//                public void onStop() {
-//                    stop();
-//                }
-//
-//                @Override
-//                public void onSeekTo(long pos) {
-//
-//                }
-//
-//                @Override
-//                public boolean onMediaButtonEvent(Intent mediaButtonEvent) {
-//                    sendBroadcast(mediaButtonEvent);
-//                    return true;
-//                }
-//            });
-
-//            mMediaSession.setFlags(    MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
-//            mMediaSession.setActive(true);
-//            mMediaSession.setPlaybackState(mPlaybackState);
         } catch (Exception e) {
+            System.out.println("initialization error");
             e.printStackTrace();
         }
 
@@ -231,6 +220,74 @@ public class Signal extends Service
         sendBroadcast(new Intent(Mode.CREATED));
     }
 
+    private void createMediaSession() {
+        this.mPlaybackState = new PlaybackStateCompat.Builder()
+
+                .setState(PlaybackStateCompat.STATE_PAUSED, 0, 1.0f).setActions(PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE)
+
+                .build();
+
+        // setup our media session
+        this.mMediaSession = new MediaSessionCompat(this, "radiomelodia");
+        this.mMediaSession.setMetadata(new MediaMetadataCompat.Builder()
+                .putString(MediaMetadata.METADATA_KEY_ARTIST, "Melodia FM")
+                .putString(MediaMetadata.METADATA_KEY_ALBUM, "97,5 FM")
+                .putString(MediaMetadata.METADATA_KEY_TITLE, "A rádio mais ouvida do Brasil")
+                .putLong(MediaMetadata.METADATA_KEY_DURATION, -1)
+                .putLong(MediaMetadata.METADATA_KEY_TRACK_NUMBER, -1)
+                .putLong(MediaMetadata.METADATA_KEY_NUM_TRACKS, 1)
+        .build());
+        Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+        //mediaButtonIntent.setClass(context, SignalReceiver.class);
+        //PendingIntent mbrIntent = PendingIntent.getBroadcast(context, 0, mediaButtonIntent, 0);
+        MediaButtonReceiver.handleIntent(this.mMediaSession, mediaButtonIntent);
+        mMediaSession.setMediaButtonReceiver(MediaButtonReceiver.buildMediaButtonPendingIntent(this, 0));
+        mMediaSession.setCallback( new MediaSessionCompat.Callback() {
+            @Override
+            public void onPlay() {
+                play();
+            }
+
+            @Override
+            public void onPause() {
+                stop();
+            }
+
+            @Override
+            public void onSkipToNext() {
+                System.out.println("next");
+            }
+
+            @Override
+            public void onSkipToPrevious() {
+                System.out.println("previous");
+            }
+
+            @Override
+            public void onStop() {
+                stop();
+            }
+
+            @Override
+            public void onSeekTo(long pos) {
+                System.out.println("seekto");
+            }
+
+            @Override
+            public boolean onMediaButtonEvent(Intent mediaButtonEvent) {
+                System.out.println("mediaButton - tazdingoman");
+                System.out.println(mediaButtonEvent.getAction());
+                //sendBroadcast(mediaButtonEvent);
+                return super.onMediaButtonEvent(mediaButtonEvent);
+            }
+        });
+
+        mMediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
+                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
+        mMediaSession.setActive(true);
+        mMediaSession.setPlaybackState(mPlaybackState);
+    }
+
     public void setURLStreaming(String streamingURL) {
         this.streamingURL = streamingURL;
     }
@@ -238,12 +295,12 @@ public class Signal extends Service
     boolean mVirgin = true;
 
     public void play() {
-        Log.v("MELODIA STOP", "melodia playing");
-//        if(mVirgin) {
+        //if(mVirgin) {
             startForeground(NOTIFY_ME_ID, getNotification());
-            mVirgin = false;
-//        }
-        if (isConnected() && !this.isPlaying) {
+         ///   mVirgin = false;
+        //}
+        if (isConnected()) {
+
             this.prepare();
         } else {
             sendBroadcast(new Intent(Mode.STOPPED));
@@ -255,14 +312,15 @@ public class Signal extends Service
 
     public void stop() {
         this.isPreparingStarted = false;
-        Log.v("MELODIA STOP", "melodia stopping");
+
         if (this.isPlaying) {
             this.isPlaying = false;
             this.player.setPlayWhenReady(false);
-
-//            this.mPlaybackState = new PlaybackStateCompat.Builder().setState(PlaybackStateCompat.STATE_PAUSED, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f).setActions(PlaybackStateCompat.ACTION_PLAY).build();
-
-//            this.mMediaSession.setPlaybackState(this.mPlaybackState);
+            this.mPlaybackState = new PlaybackStateCompat.Builder().setState(PlaybackStateCompat.STATE_PAUSED, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f).setActions(PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE).build();
+            if(this.mMediaSession==null) {
+                createMediaSession();
+            }
+            this.mMediaSession.setPlaybackState(this.mPlaybackState);
             if(mWifiLock!=null && mWifiLock.isHeld()) {
 
                 try{
@@ -282,7 +340,6 @@ public class Signal extends Service
 
                 }
             }
-            stopForeground(false);
         }
 
 
@@ -317,17 +374,17 @@ public class Signal extends Service
 
         }
         remoteViews = new RemoteViews(context.getPackageName(), R.layout.streaming_notification_player);
-        notifyBuilder = new NotificationCompat.Builder(this, "com.audioStreaming")
+        notifyBuilder = new NotificationCompat.Builder(this.context, "com.audioStreaming")
                 .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off) // TODO Use app icon instead
                 .setContentText("")
                 .setOngoing(true)
                 .setContent(remoteViews).setOnlyAlertOnce(true);
 
-        Intent resultIntent = new Intent(this, this.clsActivity);
+        Intent resultIntent = new Intent(this.context, this.clsActivity);
         resultIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         resultIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this.context);
         stackBuilder.addParentStack(this.clsActivity);
         stackBuilder.addNextIntent(resultIntent);
 
@@ -336,7 +393,7 @@ public class Signal extends Service
 
         notifyBuilder.setContentIntent(resultPendingIntent);
         remoteViews.setOnClickPendingIntent(R.id.btn_streaming_notification_play, makePendingIntent(BROADCAST_PLAYBACK_PLAY));
-        remoteViews.setOnClickPendingIntent(R.id.btn_streaming_notification_stop, makePendingIntent(BROADCAST_EXIT));
+        remoteViews.setOnClickPendingIntent(R.id.btn_streaming_notification_stop, makePendingIntent(BROADCAST_PLAYBACK_PLAY));
         notifyManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         notifyManager.cancelAll();
 
@@ -349,69 +406,77 @@ public class Signal extends Service
     }
 
     private PendingIntent makePendingIntent(String broadcast) {
+        System.out.println("MUGA MUGA MUGA");
         Intent intent = new Intent(broadcast);
         return PendingIntent.getBroadcast(this.context, 0, intent, 0);
     }
 
     public void clearNotification() {
-//        if (notifyManager != null)
-//            notifyManager.cancel(NOTIFY_ME_ID);
+        if (notifyManager != null)
+            notifyManager.cancel(NOTIFY_ME_ID);
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
     }
 
     public void exitNotification() {
-        stopForeground(true);
         notifyManager.cancelAll();
-//        clearNotification();
-        notifyBuilder = null;
-        notifyManager = null;
+        clearNotification();
+        //notifyBuilder = null;
+        //notifyManager = null;
     }
 
             private AudioManager.OnAudioFocusChangeListener audioFocusChangeListener = new AudioManager.OnAudioFocusChangeListener() {
 
                 @Override
                 public void onAudioFocusChange(int focusChange) {
-                    if (focusChange==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
-                        //We've temporarily lost focus, so pause the mMediaPlayer, wherever it's at.
-                        try {
-                            player.setPlayWhenReady(false);
-                            mAudioManagerHelper.setHasAudioFocus(false);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-
-                    } else if (focusChange==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
-                        //Lower the current mMediaPlayer volume.
-                        mAudioManagerHelper.setAudioDucked(true);
-                        mAudioManagerHelper.setTargetVolume(5);
-                        mAudioManagerHelper.setStepDownIncrement(1);
-
-
-                        mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (int)0.8f*mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC), 0);
-
-                    } else if (focusChange==AudioManager.AUDIOFOCUS_GAIN) {
-
-                        if (mAudioManagerHelper.isAudioDucked()) {
-                            //Crank the volume back up again.
-
-                            mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (int)1.25f*mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC), 0);
-                            //mHandler.post(duckUpVolumeRunnable);
-                            mAudioManagerHelper.setAudioDucked(false);
-                        } else {
-                            //We've regained focus. Update the audioFocus tag, but don't start the mMediaPlayer.
-                            if(isPlaying) {
-                                player.setPlayWhenReady(true);
+                    try {
+                        if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+                            //We've temporarily lost focus, so pause the mMediaPlayer, wherever it's at.
+                            try {
+                                player.setPlayWhenReady(false);
+                                mAudioManagerHelper.setHasAudioFocus(false);
+                            } catch (Exception e) {
+                                e.printStackTrace();
                             }
 
+                        } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
+                            //Lower the current mMediaPlayer volume.
+                            mAudioManagerHelper.setAudioDucked(true);
+                            mAudioManagerHelper.setTargetVolume(5);
+                            mAudioManagerHelper.setStepDownIncrement(1);
+
+
+                            mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (int) (0.8f * mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC)), 0);
+
+                        } else if (focusChange == AudioManager.AUDIOFOCUS_GAIN) {
+
+                            if (mAudioManagerHelper.isAudioDucked()) {
+                                //Crank the volume back up again.
+
+                                mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (int) (1.25f * mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC)), 0);
+                                //mHandler.post(duckUpVolumeRunnable);
+                                mAudioManagerHelper.setAudioDucked(false);
+                            } else {
+                                //We've regained focus. Update the audioFocus tag, but don't start the mMediaPlayer.
+                                if (isPlaying) {
+                                    player.setPlayWhenReady(true);
+                                }
+
+                            }
+
+                        } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
+                            //We've lost focus permanently so pause the service. We'll have to request focus again later.
+                            player.setPlayWhenReady(false);
+
+                            mAudioManagerHelper.setHasAudioFocus(false);
+
                         }
-
-                    } else if (focusChange==AudioManager.AUDIOFOCUS_LOSS) {
-                        //We've lost focus permanently so pause the service. We'll have to request focus again later.
-                        player.setPlayWhenReady(false);
-
-                        mAudioManagerHelper.setHasAudioFocus(false);
 
                     }
 
+                catch (Exception e) {
+                    System.out.println("focus error");
+                    e.printStackTrace();
+                }
                 }
 
             };
@@ -437,7 +502,7 @@ public class Signal extends Service
                 if (result!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
                     Toast.makeText(this, "Sem permissão para tocar a rádio! Feche outros aplicativos de áudio.", Toast.LENGTH_LONG).show();
                     //Stop the service.
-                    this.stopSelf();
+                 //   this.stopSelf();
 
                     return false;
                 } else {
@@ -489,12 +554,9 @@ public class Signal extends Service
                 AudioAttributes.Builder contentType = new AudioAttributes.Builder().setContentType(2);
                 contentType.setUsage(android.media.AudioAttributes.USAGE_MEDIA);
                 DefaultLoadControl.Builder builder = new DefaultLoadControl.Builder();
-                builder.setAllocator(new DefaultAllocator(true, 64*1024));
-                builder.setBufferDurationsMs(5000, 10000, 5000, 5000);
+                builder.setAllocator(new DefaultAllocator(true, 32*1024));
+                builder.setBufferDurationsMs(5000, 25000, 5000, 5000);
                 builder.setPrioritizeTimeOverSizeThresholds(true);
-
-
-
                 this.player = ExoPlayerFactory.newSimpleInstance( this, new DefaultRenderersFactory(this),trackSelector, builder.createDefaultLoadControl());
                 this.player.setAudioAttributes(contentType.build());
 
@@ -505,10 +567,17 @@ public class Signal extends Service
             }
             if(requestAudioFocus()) {
                 this.player.setPlayWhenReady(true);
-                //this.mPlaybackState = new PlaybackStateCompat.Builder().setState(PlaybackStateCompat.STATE_PLAYING, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f).setActions(PlaybackStateCompat.ACTION_PAUSE).build();
-                //this.mMediaSession.ge
-                //this.mMediaSession.
-                //this.mMediaSession.setPlaybackState(this.mPlaybackState);
+                this.mPlaybackState = new PlaybackStateCompat.Builder().setState(PlaybackStateCompat.STATE_PLAYING, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f).setActions(PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE).build();
+                if(this.mMediaSession==null) {
+
+                        createMediaSession();
+
+
+                }
+                else {
+
+                }
+                this.mMediaSession.setPlaybackState(this.mPlaybackState);
                 this.isPlaying = true;
             }
 
@@ -530,12 +599,14 @@ public class Signal extends Service
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (this.isPlaying) {
-            //sendBroadcast(new Intent(Mode.PLAYING));
+            sendBroadcast(new Intent(Mode.PLAYING));
         } else if (this.isPreparingStarted) {
-            //sendBroadcast(new Intent(Mode.START_PREPARING));
+            sendBroadcast(new Intent(Mode.START_PREPARING));
         } else {
-            //sendBroadcast(new Intent(Mode.STARTED));
+            sendBroadcast(new Intent(Mode.STARTED));
         }
+        createMediaSession();
+
 
         return Service.START_STICKY;
     }
@@ -545,7 +616,7 @@ public class Signal extends Service
         this.isPreparingStarted = false;
         this.didPrepare = true;
         //this.mediaPlayer.start();
-//        sendBroadcast(new Intent(Mode.PREPARED));
+        sendBroadcast(new Intent(Mode.PREPARED));
     }
 
    // @Override
@@ -642,12 +713,6 @@ public class Signal extends Service
         //  TODO
     }
 
-            @Override
-            public void onDestroy() {
-                super.onDestroy();
-                if (this.receiver != null)
-                    unregisterReceiver(this.receiver);
-            }
 
     public void playerStopped(int perf) {
         this.isPlaying = false;

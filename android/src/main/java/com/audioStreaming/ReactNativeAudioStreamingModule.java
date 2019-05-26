@@ -1,6 +1,5 @@
 package com.audioStreaming;
 
-import android.app.NotificationManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -84,9 +83,7 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
   }
 
   @Override public void onServiceDisconnected(ComponentName className) {
-    //signal = null;
-    NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-    notificationManager.cancelAll();
+    signal = null;
   }
 
   @ReactMethod public void play(String streamingURL, ReadableMap options) {
@@ -109,7 +106,7 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
 
   @ReactMethod public void stop() {
     signal.stop();
-    signal = null;
+    //signal = null;
   }
 
   @ReactMethod public void pause() {
